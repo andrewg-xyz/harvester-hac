@@ -62,6 +62,7 @@ resource "harvester_virtualmachine" "ubuntu20-dev" {
 
   cloudinit {
     user_data    = <<-EOF
+      #cloud-config
       user: ubuntu
       password: root
       chpasswd:
@@ -77,7 +78,7 @@ resource "harvester_virtualmachine" "ubuntu20-dev" {
           - qemu-guest-agent
       ssh_authorized_keys:
         - >-
-          ${data.harvester_ssh_key.sshkey.id}
+          ${data.harvester_ssh_key.sshkey.public_key}
       EOF
     network_data = <<-EOF
       network:
@@ -87,6 +88,8 @@ resource "harvester_virtualmachine" "ubuntu20-dev" {
             addresses:
               - 23.0.0.20/24
             gateway4: 23.0.0.1
+            nameservers:
+              addresses: [8.8.8.8]
     EOF
   }
 }
