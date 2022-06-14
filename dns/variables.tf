@@ -59,13 +59,6 @@ variable "ssh_key" {
   default = "~/.ssh/id_ed25519"
 }
 
-# --- DNS 01 ---
-variable "dns01_name" {
-  description = "Name of VM"
-  type = string
-  default = "dns01"
-}
-
 variable "ci_user" {
   description = "username"
   type = string
@@ -77,11 +70,29 @@ variable "ci_secret" {
   type = string
 }
 
-variable "ci_ip" {
+# --- DNS 01 ---
+variable "dns01_name" {
+  description = "Name of VM"
+  type = string
+  default = "dns01"
+}
+
+variable "ci_dns01_ip" {
   description = "IP address of node"
   type = string
 }
 
+# --- DNS 02 ---
+variable "dns02_name" {
+  description = "Name of VM"
+  type = string
+  default = "dns02"
+}
+
+variable "ci_dns02_ip" {
+  description = "IP address of node"
+  type = string
+}
 
 
 
