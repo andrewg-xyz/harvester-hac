@@ -8,28 +8,20 @@ terraform {
 }
 
 resource "harvester_network" "vlan1" {
-  name      = "vlan1"
-  namespace = "harvester-public"
-
-  vlan_id = 1
-
+  name                 = var.vlan_name
+  namespace            = var.vlan_namespace
+  vlan_id              = var.vlan_id
   route_dhcp_server_ip = ""
 }
 
-resource "harvester_virtualmachine" "ubuntu20-dev" {
-  name      = "ubuntu-dev"
-  namespace = "default"
-
-  description = "test raw image"
-  tags        = {
-    ssh-user = "ubuntu"
-  }
-
-  cpu    = var.cpu
-  memory = var.memory
+resource "harvester_virtualmachine" "dns01" {
+  name      = var.dns01_name
+  namespace = var.vm_namespace
+  cpu       = var.cpu
+  memory    = var.memory
 
   run_strategy = "RerunOnFailure"
-  hostname     = "ubuntu-dev"
+  hostname     = var.dns01_name
   machine_type = "q35"
 
   ssh_keys = [
@@ -37,34 +29,25 @@ resource "harvester_virtualmachine" "ubuntu20-dev" {
   ]
 
   network_interface {
-    name         = "nic-1"
+    name         = "nic"
     network_name = harvester_network.vlan1.id
   }
 
   disk {
-    name       = "rootdisk"
+    name       = "rootdisk-${var.dns01_name}"
     type       = "disk"
-    size       = "10Gi"
+    size       = var.vm_disk_size
     bus        = "virtio"
     boot_order = 1
-
     image       = data.harvester_image.ubuntu20.id
     auto_delete = true
   }
 
-  #  disk {
-  #    name        = "emptydisk"
-  #    type        = "disk"
-  #    size        = "20Gi"
-  #    bus         = "virtio"
-  #    auto_delete = true
-  #  }
-
   cloudinit {
     user_data    = <<-EOF
       #cloud-config
-      user: ubuntu
-      password: root
+      user: ${var.ci_user}
+      password: ${var.ci_secret}
       chpasswd:
         expire: false
       ssh_pwauth: true
@@ -86,10 +69,42 @@ resource "harvester_virtualmachine" "ubuntu20-dev" {
         ethernets:
           enp1s0:
             addresses:
-              - 23.0.0.20/24
-            gateway4: 23.0.0.1
+              - ${var.ci_ip}/24
+            gateway4: ${var.network_gw}
             nameservers:
-              addresses: [8.8.8.8]
+              addresses: [${var.network_nameserver}]
     EOF
+  }
+
+  provisioner "file" {
+    source = "scripts/adguardsync.sh"
+    destination = "/tmp/adguardsync.sh"
+
+    connection {
+      type     = "ssh"
+      user     = var.ci_user
+      private_key = "${file(var.ssh_key)}"
+      host = var.ci_ip
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v",
+      "curl -sSLO https://go.dev/dl/go1.17.7.linux-amd64.tar.gz",
+      "sudo tar -C /usr/local -xzf go1.17.7.linux-amd64.tar.gz",
+      "export GOPATH=/home/user/go",
+      "export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin",
+      "go install github.com/bakito/adguardhome-sync@latest",
+      "cp /tmp/adguardsync.sh /home/user/adguardsync.sh && chmod +x /home/user/adguardsync.sh",
+      "echo 'export GOPATH=/home/user/go' >> /home/user/.bashrc",
+      "echo 'export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin' >> /home/user/.bashrc",
+    ]
+    connection {
+      type     = "ssh"
+      user     = var.ci_user
+      private_key = "${file(var.ssh_key)}"
+      host = var.ci_ip
+    }
   }
 }
