@@ -1,6 +1,8 @@
-# harvestor-hac
+# harvester-hac
 
 Homelab as Code, using [Harvester HCI](https://docs.harvesterhci.io/v1.0/).
+
+9JUL22 - I've paused using Harvester. some issue with libvirt prevented me from running VMs reliably.
 
 ## Cluster Creation
 
